@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>肥杨幻影蛇 | 幻影精英版</title>
+    <style>
+        :root {
+            --bg-obsidian: #020203;
+            --panel-glass: rgba(12, 12, 16, 0.65);
+            --border-glow: rgba(255, 255, 255, 0.04);
+            --brand-cyan: #00e5ff;
+            --brand-gold: #e6b800;
+            --brand-phantom: #b000ff;
+            --text-primary: #f0f0f5;
+            --text-secondary: #6e7a8a;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
+        body {
+            background-color: var(--bg-obsidian);
+            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Helvetica Neue", sans-serif;
+            overflow: hidden; width: 100vw; height: 100vh;
+            display: flex; justify-content: center; align-items: center;
+        }
+        #master-container {
+            width: 100%; height: 100%; max-width: 760px;
+            display: flex; flex-direction: column;
+            background: radial-gradient(circle at 50% 0%, #0c0e1a 0%, var(--bg-obsidian) 80%);
+            box-shadow: 0 0 120px rgba(0,0,0,1); position: relative;
+        }
+        #hud-container {
+            flex: 0 0 auto; padding: 24px 32px;
+            background: var(--panel-glass); backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);
+            border-bottom: 1px solid var(--border-glow);
+            display: flex; justify-content: space-between; align-items: center; z-index: 50;
+            transition: all 0.4s cubic-bezier(0.16,1,0.3,1);
+        }
+        #hud-container.high-combo { box-shadow: 0 15px 50px rgba(176,0,255,0.12); border-bottom: 1px solid rgba(176,0,255,0.3); }
+        .hud-module { flex:1; display:flex; flex-direction:column; justify-content:center; }
+        .hud-title { font-size:10px; letter-spacing:4px; color:var(--text-secondary); font-weight:700; margin-bottom:6px; opacity:0.8; }
+        .hud-data { font-size:32px; font-weight:900; font-variant-numeric:tabular-nums; line-height:1; text-shadow:0 0 20px rgba(255,255,255,0.1); transition: color 0.3s, text-shadow 0.3s; }
+        .module-best { align-items:flex-end; }
+        .module-best .hud-title { color:rgba(230,184,0,0.6); }
+        .module-best .hud-data { color:var(--brand-gold); text-shadow:0 0 25px rgba(230,184,0,0.25); }
+        #combo-wrapper { flex:1.5; margin:0 20px; display:flex; flex-direction:column; align-items:center; }
+        .combo-text { font-size:13px; font-weight:800; letter-spacing:3px; color:var(--brand-cyan); margin-bottom:10px; transition:all 0.15s; }
+        .combo-track { width:100%; max-width:220px; height:3px; background:rgba(255,255,255,0.04); border-radius:4px; overflow:hidden; }
+        .combo-fill { height:100%; width:0%; background:linear-gradient(90deg,var(--brand-cyan),var(--brand-phantom)); transition:width 0.05s linear; }
+        .control-btn {
+            position:absolute; top:28px; left:50%; transform:translateX(-50%);
+            width:40px; height:4px; border-radius:4px; background:rgba(255,255,255,0.1);
+            cursor:pointer; transition:all 0.2s;
+        }
+        .control-btn:hover { background:rgba(255,255,255,0.3); height:6px; }
+        .control-btn:active { background:var(--brand-cyan); }
+        #game-viewport {
+            flex:1 1 auto; position:relative; overflow:hidden;
+            margin:20px; border-radius:16px;
+            border:1px solid rgba(255,255,255,0.03);
+            box-shadow: inset 0 0 40px rgba(0,0,0,0.8), 0 20px 50px rgba(0,0,0,0.5);
+            background-color: transparent;
+        }
+        canvas { display:block; width:100%; height:100%; position:absolute; top:0; left:0; z-index:10; }
+        .overlay {
+            position:absolute; inset:0; z-index:100; display:flex; flex-direction:column;
+            justify-content:center; align-items:center; background:rgba(2,2,3,0.85);
+            backdrop-filter:blur(25px); -webkit-backdrop-filter:blur(25px);
+            opacity:0; pointer-events:none; transition:opacity 0.5s cubic-bezier(0.16,1,0.3,1);
+        }
+        .overlay.active { opacity:1; pointer-events:auto; }
+        .hero-title {
+            font-size:56px; font-weight:900; letter-spacing:16px; margin-bottom:8px;
+            background:linear-gradient(180deg,#ffffff 10%,#7a8a9e 100%);
+            -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+            text-align:center; text-indent:16px; text-shadow:0 20px 40px rgba(0,0,0,0.5);
+        }
+        .hero-subtitle {
+            font-size:14px; letter-spacing:14px; color:var(--brand-cyan); margin-bottom:60px;
+            font-weight:600; text-shadow:0 0 25px rgba(0,229,255,0.4); text-align:center; text-indent:12px;
+        }
+        .action-menu { display:flex; flex-direction:column; gap:20px; width:100%; max-width:340px; padding:0 20px; }
+        .btn-elite {
+            position:relative; padding:22px 28px;
+            background:rgba(255,255,255,0.015); backdrop-filter:blur(10px);
+            border:1px solid rgba(255,255,255,0.06); border-radius:20px; color:var(--text-primary);
+            font-size:15px; font-weight:600; letter-spacing:3px; cursor:pointer; overflow:hidden;
+            display:flex; justify-content:space-between; align-items:center;
+            transition:all 0.4s cubic-bezier(0.16,1,0.3,1);
+        }
+        .btn-elite::before {
+            content:''; position:absolute; inset:0; border-radius:20px;
+            padding:1px; background:linear-gradient(135deg,rgba(255,255,255,0.1),transparent);
+            -webkit-mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite:xor; mask-composite:exclude; opacity:0.5;
+        }
+        .btn-elite::after {
+            content:''; position:absolute; left:0; top:0; width:100%; height:100%;
+            background:linear-gradient(90deg,transparent,rgba(255,255,255,0.04),transparent);
+            transform:translateX(-100%); transition:transform 0.6s;
+        }
+        .btn-elite:hover::after { transform:translateX(100%); }
+        .btn-elite:hover { background:rgba(255,255,255,0.03); transform:translateY(-2px); box-shadow:0 10px 30px rgba(0,0,0,0.5); }
+        .btn-elite:active { transform:translateY(1px) scale(0.98); }
+        .btn-elite.primary { border-color:rgba(0,229,255,0.3); background:rgba(0,229,255,0.04); }
+        .btn-elite.primary:hover { border-color:var(--brand-cyan); box-shadow:0 0 35px rgba(0,229,255,0.15); }
+        .btn-hint { font-size:11px; color:var(--text-secondary); font-weight:500; letter-spacing:1px; }
+        #touch-zone { position:absolute; inset:0; z-index:20; display:none; }
+    </style>
+</head>
+<body>
+<div id="master-container">
+    <header id="hud-container" style="display:none;">
+        <div class="hud-module" style="align-items:flex-start;">
+            <div class="hud-title">得分</div>
+            <div class="hud-data" id="score-display">0</div>
+        </div>
+        <div id="combo-wrapper">
+            <div class="combo-text" id="combo-display">连击 1x</div>
+            <div class="combo-track"><div class="combo-fill" id="combo-bar"></div></div>
+        </div>
+        <div class="hud-module module-best">
+            <div class="hud-title">最高纪录</div>
+            <div class="hud-data" id="best-display">0</div>
+        </div>
+        <div class="control-btn" onclick="Core.pause()" title="暂停"></div>
+    </header>
+    <main id="game-viewport">
+        <canvas id="render-engine"></canvas>
+        <div id="touch-zone"></div>
+    </main>
+    <div id="ui-menu" class="overlay active">
+        <h1 class="hero-title">肥狗幻影蛇</h1>
+        <p class="hero-subtitle">宇智波·鑫</p>
+        <div style="margin-bottom:50px; text-align:center;">
+            <div class="hud-title" style="color:rgba(230,184,0,0.7);">至高纪录</div>
+            <div class="hud-data" id="menu-best-display" style="font-size:42px; color:var(--brand-gold);">0</div>
+        </div>
+        <div class="action-menu">
+            <button class="btn-elite primary" onclick="Core.boot('phantom')">
+                <span>幻影模式</span><span class="btn-hint">竞技核心</span>
+            </button>
+            <button class="btn-elite" onclick="Core.boot('zen')">
+                <span>禅意模式</span><span class="btn-hint">无界漫游</span>
+            </button>
+        </div>
+    </div>
+    <div id="ui-pause" class="overlay">
+        <h1 class="hero-title" style="font-size:36px; margin-bottom:50px; letter-spacing:8px;">系统暂停</h1>
+        <div class="action-menu">
+            <button class="btn-elite primary" onclick="Core.resume()"><span>继续游戏</span></button>
+            <button class="btn-elite" onclick="Core.restart()"><span>重新开始</span></button>
+            <button class="btn-elite" onclick="Core.abort()"><span>返回主菜单</span></button>
+        </div>
+    </div>
+    <div id="ui-gameover" class="overlay">
+        <p class="hero-subtitle" style="margin-bottom:15px; color:var(--text-secondary);">连接中断 / 最终数据</p>
+        <div class="hud-data" id="final-score" style="font-size:72px; color:var(--text-primary); margin-bottom:10px;">0</div>
+        <div id="new-record-tag" style="font-size:14px; font-weight:800; letter-spacing:4px; color:var(--brand-gold); margin-bottom:60px; opacity:0; transition:opacity 0.5s;">新纪录达成！</div>
+        <div class="action-menu">
+            <button class="btn-elite primary" onclick="Core.restart()"><span>再来一局</span></button>
+            <button class="btn-elite" onclick="Core.abort()"><span>返回主菜单</span></button>
+        </div>
+    </div>
+</div>
+<script>
+const Palette = {
+    bgObsidian: '#020203',
+    cyan: '#00e5ff',
+    gold: '#e6b800',
+    phantom: '#b000ff',
+    snakeBody: 'rgba(0,229,255,0.8)',
+    snakePhantom: 'rgba(176,0,255,0.9)',
+    head: '#ffffff',
+    boundary: 'rgba(255,255,255,0.08)'
+};
+
+const Acoustics = {
+    ctx: null,
+    init() { if(!this.ctx) this.ctx = new (window.AudioContext||window.webkitAudioContext)(); },
+    play(type, multiplier=1) {
+        this.init();
+        if(!this.ctx) return;
+        const now = this.ctx.currentTime;
+        switch(type) {
+            case 'ui':
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                osc.type='sine'; osc.frequency.setValueAtTime(800,now);
+                osc.frequency.exponentialRampToValueAtTime(300,now+0.04);
+                gain.gain.setValueAtTime(0.08,now); gain.gain.linearRampToValueAtTime(0,now+0.04);
+                osc.start(now); osc.stop(now+0.04); break;
+            case 'absorb':
+                const rootFreq = 349.23 * Math.pow(1.05946, Math.min(12,multiplier));
+                [1.0,1.25,1.5].forEach((factor,idx)=>{
+                    const o=this.ctx.createOscillator(); const g=this.ctx.createGain();
+                    o.type=idx===1?'sine':'triangle';
+                    const freq=rootFreq*factor;
+                    o.frequency.setValueAtTime(freq,now);
+                    o.frequency.exponentialRampToValueAtTime(freq*1.8,now+0.08);
+                    g.gain.setValueAtTime(0.08,now);
+                    g.gain.exponentialRampToValueAtTime(0.001,now+0.14);
+                    o.connect(g); g.connect(this.ctx.destination);
+                    o.start(now); o.stop(now+0.15);
+                }); break;
+            case 'phantom':
+                const po=this.ctx.createOscillator(); const pg=this.ctx.createGain();
+                po.type='square'; po.frequency.setValueAtTime(100,now);
+                po.frequency.linearRampToValueAtTime(1500,now+0.25);
+                pg.gain.setValueAtTime(0.15,now); pg.gain.exponentialRampToValueAtTime(0.001,now+0.25);
+                po.connect(pg); pg.connect(this.ctx.destination);
+                po.start(now); po.stop(now+0.25); break;
+            case 'collapse':
+                const co=this.ctx.createOscillator(); const cg=this.ctx.createGain();
+                co.type='sawtooth'; co.frequency.setValueAtTime(200,now);
+                co.frequency.linearRampToValueAtTime(30,now+0.4);
+                cg.gain.setValueAtTime(0.25,now); cg.gain.linearRampToValueAtTime(0,now+0.4);
+                co.connect(cg); cg.connect(this.ctx.destination);
+                co.start(now); co.stop(now+0.4); break;
+        }
+    }
+};
+
+const Core = {
+    canvas: document.getElementById('render-engine'),
+    ctx: null,
+    state: 'MENU',
+    mode: 'phantom',
+    gridSize: 22,
+    cols: 0, rows: 0,
+    snake: [],
+    dir: {x:1,y:0},
+    pendingDir: {x:1,y:0},
+    food: {x:0,y:0,type:'base',renderSize:0},
+    score: 0,
+    bestScore: 0,
+    isNewRecord: false,
+    combo: 1, comboTimer: 0, comboMaxDecay: 2200,
+    lastTick: 0, accumulatedTime: 0, baseTickRate: 115, timeDilation: 1.0,
+    fxParticles: [], fxTexts: [], fxShockwaves: [],
+    cameraShake: 0, flashAlpha: 0, flashColor: '#ffffff',
+    touchStartX: 0, touchStartY: 0,
+
+    init() {
+        this.ctx = this.canvas.getContext('2d', {alpha: false});
+        const savedBest = localStorage.getItem('feiyang_phantom_best');
+        if(savedBest) this.bestScore = parseInt(savedBest,10);
+        document.getElementById('menu-best-display').innerText = this.bestScore;
+        document.getElementById('best-display').innerText = this.bestScore;
+        this.resize();
+        window.addEventListener('resize', ()=>{ this.resize(); this.enforceBoundary(); });
+        this.bindInput();
+        requestAnimationFrame(t=>this.engineLoop(t));
+    },
+    resize() {
+        const parent = this.canvas.parentElement;
+        const dpr = window.devicePixelRatio||1;
+        this.canvas.width = parent.clientWidth * dpr;
+        this.canvas.height = parent.clientHeight * dpr;
+        this.ctx.scale(dpr,dpr);
+        this.cols = Math.floor(parent.clientWidth / this.gridSize);
+        this.rows = Math.floor(parent.clientHeight / this.gridSize);
+    },
+    enforceBoundary() {
+        if(this.state==='PLAYING' && (this.food.x>=this.cols-1 || this.food.y>=this.rows-1)) this.generateAnomaly();
+    },
+    bindInput() {
+        window.addEventListener('keydown', e=>{
+            if(this.state!=='PLAYING') return;
+            const key = e.key.toLowerCase();
+            if((key==='w'||key==='arrowup') && this.dir.y===0) this.pendingDir={x:0,y:-1};
+            if((key==='s'||key==='arrowdown') && this.dir.y===0) this.pendingDir={x:0,y:1};
+            if((key==='a'||key==='arrowleft') && this.dir.x===0) this.pendingDir={x:-1,y:0};
+            if((key==='d'||key==='arrowright') && this.dir.x===0) this.pendingDir={x:1,y:0};
+            if(key==='escape') this.pause();
+        });
+        const zone = document.getElementById('touch-zone');
+        zone.addEventListener('touchstart', e=>{
+            this.touchStartX = e.touches[0].clientX;
+            this.touchStartY = e.touches[0].clientY;
+        }, {passive:true});
+        zone.addEventListener('touchmove', e=>{
+            if(this.state!=='PLAYING') return;
+            e.preventDefault();
+            if(!this.touchStartX||!this.touchStartY) return;
+            const dx = e.touches[0].clientX - this.touchStartX;
+            const dy = e.touches[0].clientY - this.touchStartY;
+            if(Math.abs(dx)>25 || Math.abs(dy)>25) {
+                if(Math.abs(dx)>Math.abs(dy)) {
+                    if(dx>0 && this.dir.x===0) this.pendingDir={x:1,y:0};
+                    else if(dx<0 && this.dir.x===0) this.pendingDir={x:-1,y:0};
+                } else {
+                    if(dy>0 && this.dir.y===0) this.pendingDir={x:0,y:1};
+                    else if(dy<0 && this.dir.y===0) this.pendingDir={x:0,y:-1};
+                }
+                this.touchStartX=0; this.touchStartY=0;
+            }
+        }, {passive:false});
+    },
+    setUI(overlayId) {
+        document.querySelectorAll('.overlay').forEach(el=>el.classList.remove('active'));
+        if(overlayId) document.getElementById(overlayId).classList.add('active');
+    },
+    boot(mode) {
+        Acoustics.play('ui');
+        this.mode = mode;
+        this.score=0; this.combo=1; this.comboTimer=0; this.timeDilation=1.0;
+        this.isNewRecord=false;
+        this.dir={x:1,y:0}; this.pendingDir={x:1,y:0};
+        this.fxParticles=[]; this.fxTexts=[]; this.fxShockwaves=[];
+        this.flashAlpha=0;
+        document.getElementById('hud-container').style.display='flex';
+        document.getElementById('touch-zone').style.display='block';
+        document.getElementById('new-record-tag').style.opacity='0';
+        document.getElementById('best-display').innerText = this.bestScore;
+        this.resize();
+        const cx = Math.floor(this.cols/2);
+        const cy = Math.floor(this.rows/2);
+        this.snake = [
+            {x:cx, y:cy, rx:cx, ry:cy, fromX:cx, fromY:cy},
+            {x:cx-1, y:cy, rx:cx-1, ry:cy, fromX:cx-1, fromY:cy},
+            {x:cx-2, y:cy, rx:cx-2, ry:cy, fromX:cx-2, fromY:cy}
+        ];
+        this.generateAnomaly();
+        this.setUI(null);
+        this.state='PLAYING';
+        this.lastTick = performance.now();
+        this.accumulatedTime = 0;
+    },
+    pause() {
+        if(this.state!=='PLAYING') return;
+        Acoustics.play('ui');
+        this.state='PAUSED';
+        this.setUI('ui-pause');
+    },
+    resume() {
+        Acoustics.play('ui');
+        this.state='PLAYING';
+        this.setUI(null);
+        this.lastTick = performance.now();
+    },
+    restart() { this.boot(this.mode); },
+    abort() {
+        Acoustics.play('ui');
+        this.state='MENU';
+        document.getElementById('menu-best-display').innerText = this.bestScore;
+        document.getElementById('hud-container').style.display='none';
+        document.getElementById('touch-zone').style.display='none';
+        this.setUI('ui-menu');
+    },
+    generateAnomaly() {
+        let valid=false;
+        while(!valid) {
+            this.food.x = Math.floor(Math.random()*(this.cols-2))+1;
+            this.food.y = Math.floor(Math.random()*(this.rows-2))+1;
+            valid = !this.snake.some(s=>s.x===this.food.x && s.y===this.food.y);
+        }
+        const rand = Math.random();
+        if(rand<0.04) this.food.type='phantom';
+        else if(rand<0.20) this.food.type='gold';
+        else this.food.type='base';
+        this.food.renderSize=0;
+    },
+    engineLoop(timestamp) {
+        if(this.state==='PLAYING') {
+            const dt = (timestamp - this.lastTick) * this.timeDilation;
+            this.lastTick = timestamp;
+            this.updateLogic(dt);
+            this.updateGenerativeUI();
+        }
+        this.render();
+        requestAnimationFrame(t=>this.engineLoop(t));
+    },
+    updateLogic(dt) {
+        if(this.comboTimer>0) {
+            this.comboTimer -= dt;
+            if(this.comboTimer<=0) { this.combo=1; this.comboTimer=0; }
+        }
+        const dynamicRate = Math.max(55, this.baseTickRate - (Math.sqrt(this.score)*1.5));
+        const progress = Math.min(1, this.accumulatedTime / dynamicRate);
+        this.snake.forEach(seg => {
+            seg.rx = seg.fromX + (seg.x - seg.fromX) * progress;
+            seg.ry = seg.fromY + (seg.y - seg.fromY) * progress;
+        });
+        this.accumulatedTime += dt;
+        if(this.accumulatedTime >= dynamicRate) {
+            this.accumulatedTime -= dynamicRate;
+            this.advanceMatrix();
+            this.snake.forEach(seg => {
+                seg.fromX = seg.x;
+                seg.fromY = seg.y;
+            });
+        }
+        if(this.cameraShake>0) this.cameraShake*=0.86;
+        if(this.flashAlpha>0) this.flashAlpha -= dt*0.0015;
+        if(this.food.renderSize<1) this.food.renderSize += dt*0.005;
+        for(let i=this.fxParticles.length-1;i>=0;i--) {
+            const p=this.fxParticles[i];
+            p.x+=p.vx; p.y+=p.vy; p.life-=dt*p.decay;
+            if(p.life<=0) this.fxParticles.splice(i,1);
+        }
+        for(let i=this.fxTexts.length-1;i>=0;i--) {
+            const t=this.fxTexts[i];
+            t.y-=dt*0.034; t.life-=dt*0.0012;
+            if(t.life<=0) this.fxTexts.splice(i,1);
+        }
+        for(let i=this.fxShockwaves.length-1;i>=0;i--) {
+            const sw=this.fxShockwaves[i];
+            sw.r+=dt*0.14; sw.alpha-=dt*0.002;
+            if(sw.alpha<=0) this.fxShockwaves.splice(i,1);
+        }
+        this.timeDilation=1.0;
+        if(this.mode!=='zen') {
+            const nX=this.snake[0].x+this.pendingDir.x;
+            const nY=this.snake[0].y+this.pendingDir.y;
+            if(nX<0||nX>=this.cols||nY<0||nY>=this.rows||
+               this.snake.some((s,i)=>i!==0 && s.x===nX && s.y===nY)) {
+                if(this.accumulatedTime>dynamicRate*0.5) this.timeDilation=0.25;
+            }
+        }
+    },
+    advanceMatrix() {
+        this.dir = this.pendingDir;
+        const head = {
+            x: this.snake[0].x + this.dir.x,
+            y: this.snake[0].y + this.dir.y,
+            rx: this.snake[0].x,
+            ry: this.snake[0].y,
+            fromX: this.snake[0].x,
+            fromY: this.snake[0].y
+        };
+        if(head.x<0 || head.x>=this.cols || head.y<0 || head.y>=this.rows) {
+            if(this.mode==='zen') {
+                head.x = (head.x+this.cols)%this.cols;
+                head.y = (head.y+this.rows)%this.rows;
+                head.rx=head.x; head.ry=head.y;
+                head.fromX=head.x; head.fromY=head.y;
+            } else { return this.triggerCollapse(); }
+        }
+        if(this.snake.some((s,idx)=>idx!==0 && s.x===head.x && s.y===head.y)) {
+            if(this.mode!=='zen') return this.triggerCollapse();
+        }
+        this.snake.unshift(head);
+        if(head.x===this.food.x && head.y===this.food.y) {
+            this.processAbsorption();
+            this.generateAnomaly();
+        } else {
+            this.snake.pop();
+        }
+    },
+    processAbsorption() {
+        let basePts=10, color=Palette.cyan;
+        if(this.food.type==='gold') { basePts=30; color=Palette.gold; }
+        if(this.food.type==='phantom') { basePts=150; color=Palette.phantom; Acoustics.play('phantom'); }
+        else { Acoustics.play('absorb', this.combo); }
+        const earned = basePts * this.combo;
+        this.score += earned;
+        if(this.score > this.bestScore) {
+            this.bestScore = this.score;
+            localStorage.setItem('feiyang_phantom_best', this.bestScore);
+            if(!this.isNewRecord && this.score>0) {
+                this.isNewRecord=true;
+                this.flashAlpha=0.4;
+                this.flashColor=Palette.gold;
+                this.cameraShake=15;
+            }
+        }
+        this.cameraShake = Math.max(this.cameraShake, this.food.type==='phantom'?22:8);
+        this.flashAlpha = Math.max(this.flashAlpha, this.food.type==='phantom'?0.45:0.2);
+        this.flashColor = this.isNewRecord?Palette.gold:color;
+        const fx = this.food.x*this.gridSize+this.gridSize/2;
+        const fy = this.food.y*this.gridSize+this.gridSize/2;
+        this.fxShockwaves.push({x:fx,y:fy,r:2,alpha:1.0,color:color});
+        this.fxShockwaves.push({x:fx,y:fy,r:8,alpha:0.6,color:'#ffffff'});
+        this.emitParticles(this.food.x,this.food.y,color,this.food.type==='phantom'?40:18);
+        this.fxTexts.push({x:this.food.x,y:this.food.y,text:`+${earned}`,color:color,life:1});
+        this.combo++;
+        this.comboTimer = this.comboMaxDecay;
+    },
+    triggerCollapse() {
+        Acoustics.play('collapse');
+        this.state='GAMEOVER';
+        document.getElementById('final-score').innerText = this.score;
+        if(this.isNewRecord) {
+            document.getElementById('new-record-tag').style.opacity='1';
+            document.getElementById('final-score').style.color=Palette.gold;
+            document.getElementById('final-score').style.textShadow='0 0 30px rgba(230,184,0,0.5)';
+        } else {
+            document.getElementById('new-record-tag').style.opacity='0';
+            document.getElementById('final-score').style.color='var(--text-primary)';
+            document.getElementById('final-score').style.textShadow='none';
+        }
+        this.setUI('ui-gameover');
+    },
+    emitParticles(gx,gy,color,count) {
+        const px = gx*this.gridSize+this.gridSize/2;
+        const py = gy*this.gridSize+this.gridSize/2;
+        for(let i=0;i<count;i++) {
+            const angle = Math.random()*Math.PI*2;
+            const speed = Math.random()*5+1.5;
+            this.fxParticles.push({
+                x:px, y:py, vx:Math.cos(angle)*speed, vy:Math.sin(angle)*speed,
+                r:Math.random()*3+1, color:color, life:1, decay:Math.random()*0.025+0.015
+            });
+        }
+    },
+    updateGenerativeUI() {
+        const domScore = document.getElementById('score-display');
+        if(domScore.innerText!=this.score) domScore.innerText=this.score;
+        const domBest = document.getElementById('best-display');
+        if(domBest.innerText!=this.bestScore) {
+            domBest.innerText=this.bestScore;
+            domBest.style.transform='scale(1.2)';
+            setTimeout(()=>domBest.style.transform='scale(1)',150);
+        }
+        document.getElementById('combo-display').innerText=`连击 ${this.combo}x`;
+        const pct = Math.max(0,(this.comboTimer/this.comboMaxDecay)*100);
+        document.getElementById('combo-bar').style.width=`${pct}%`;
+        const hud=document.getElementById('hud-container');
+        const cText=document.getElementById('combo-display');
+        if(this.combo>=5) {
+            hud.classList.add('high-combo');
+            cText.style.color='var(--brand-phantom)';
+            domScore.style.color='var(--brand-phantom)';
+            cText.style.transform=`scale(${Math.min(1.25,1+(this.combo*0.015))})`;
+        } else {
+            hud.classList.remove('high-combo');
+            cText.style.color='var(--brand-cyan)';
+            if(this.isNewRecord) {
+                domScore.style.color='var(--brand-gold)';
+                domScore.style.textShadow='0 0 15px rgba(230,184,0,0.4)';
+            } else {
+                domScore.style.color='var(--text-primary)';
+                domScore.style.textShadow='0 0 20px rgba(255,255,255,0.1)';
+            }
+            cText.style.transform='scale(1)';
+        }
+    },
+    render() {
+        const w = this.canvas.width/(window.devicePixelRatio||1);
+        const h = this.canvas.height/(window.devicePixelRatio||1);
+        this.ctx.fillStyle = Palette.bgObsidian;
+        this.ctx.fillRect(0,0,w,h);
+        this.ctx.save();
+        if(this.cameraShake>0.5) {
+            this.ctx.translate((Math.random()-0.5)*this.cameraShake, (Math.random()-0.5)*this.cameraShake);
+        }
+        this.ctx.lineWidth=1;
+        this.ctx.strokeStyle='rgba(255,255,255,0.012)';
+        this.ctx.beginPath();
+        for(let x=0;x<=w;x+=this.gridSize) { this.ctx.moveTo(x,0); this.ctx.lineTo(x,h); }
+        for(let y=0;y<=h;y+=this.gridSize) { this.ctx.moveTo(0,y); this.ctx.lineTo(w,y); }
+        this.ctx.stroke();
+        if(this.state==='PLAYING'||this.state==='PAUSED'||this.state==='GAMEOVER') {
+            if(this.flashAlpha>0) {
+                this.ctx.save();
+                this.ctx.fillStyle=this.flashColor;
+                this.ctx.globalAlpha=this.flashAlpha;
+                this.ctx.fillRect(0,0,w,h);
+                this.ctx.restore();
+            }
+            this.fxShockwaves.forEach(sw=>{
+                this.ctx.save();
+                this.ctx.globalAlpha=sw.alpha;
+                this.ctx.strokeStyle=sw.color;
+                this.ctx.lineWidth=2.5;
+                this.ctx.beginPath();
+                this.ctx.arc(sw.x,sw.y,sw.r,0,Math.PI*2);
+                this.ctx.stroke();
+                this.ctx.restore();
+            });
+            this.ctx.strokeStyle=Palette.boundary;
+            this.ctx.lineWidth=1;
+            this.ctx.strokeRect(0.5,0.5,this.cols*this.gridSize-1,this.rows*this.gridSize-1);
+            const fx=this.food.x*this.gridSize+this.gridSize/2;
+            const fy=this.food.y*this.gridSize+this.gridSize/2;
+            let fColor=Palette.cyan;
+            if(this.food.type==='gold') fColor=Palette.gold;
+            if(this.food.type==='phantom') fColor=Palette.phantom;
+            const pulse=Math.sin(performance.now()/150)*2.5;
+            const baseR=(this.gridSize*0.42)*Math.min(1,this.food.renderSize);
+            this.ctx.shadowBlur=this.food.type==='phantom'?30:18;
+            this.ctx.shadowColor=fColor;
+            this.ctx.fillStyle=fColor;
+            this.ctx.beginPath();
+            this.ctx.arc(fx,fy,Math.max(3,baseR+pulse),0,Math.PI*2);
+            this.ctx.fill();
+            this.snake.forEach((seg,idx)=>{
+                const px=seg.rx*this.gridSize;
+                const py=seg.ry*this.gridSize;
+                const pad=2;
+                const size=this.gridSize-pad*2;
+                if(idx===0) {
+                    this.ctx.shadowBlur=15;
+                    this.ctx.shadowColor=this.isNewRecord?Palette.gold:Palette.cyan;
+                    this.ctx.fillStyle=Palette.head;
+                } else {
+                    this.ctx.shadowBlur=6;
+                    this.ctx.shadowColor=this.combo>=5?Palette.phantom:Palette.cyan;
+                    this.ctx.fillStyle=this.combo>=5?Palette.snakePhantom:Palette.snakeBody;
+                }
+                this.ctx.beginPath();
+                this.ctx.roundRect(px+pad,py+pad,size,size,5);
+                this.ctx.fill();
+            });
+            this.ctx.shadowBlur=0;
+            this.fxParticles.forEach(p=>{
+                this.ctx.globalAlpha=p.life;
+                this.ctx.fillStyle=p.color;
+                this.ctx.beginPath();
+                this.ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+                this.ctx.fill();
+            });
+            this.ctx.globalAlpha=1;
+            this.fxTexts.forEach(t=>{
+                this.ctx.save();
+                this.ctx.globalAlpha=t.life;
+                this.ctx.fillStyle=t.color;
+                this.ctx.font='900 18px "PingFang SC","Microsoft YaHei",sans-serif';
+                this.ctx.textAlign='center';
+                this.ctx.shadowBlur=12;
+                this.ctx.shadowColor=t.color;
+                this.ctx.fillText(t.text, t.x*this.gridSize+this.gridSize/2, t.y*this.gridSize-12);
+                this.ctx.restore();
+            });
+        }
+        this.ctx.restore();
+    }
+};
+window.onload = ()=>Core.init();
+</script>
+</body>
+</html>
